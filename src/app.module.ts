@@ -6,6 +6,7 @@ import { EnvConfiguration } from './config/env.config';
 import { JoiValidationSchema } from './config/joi.validation';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
+import { ProductsModule } from './products/products.module';
 
 @Module({
   imports: [
@@ -24,6 +25,8 @@ import { AppService } from './app.service';
       autoLoadEntities: true,
       synchronize: true,
     }),
+
+    ProductsModule,
   ],
   controllers: [AppController],
   providers: [AppService],
