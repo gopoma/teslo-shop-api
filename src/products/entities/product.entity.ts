@@ -74,6 +74,10 @@ export class Product {
 
   @BeforeUpdate()
   checkSlugUpdate() {
+    if (this.title) {
+      this.slug = this.title;
+    }
+
     this.slug = this.slug
       .toLowerCase()
       .replaceAll(' ', '_')
