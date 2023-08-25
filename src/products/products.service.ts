@@ -7,12 +7,14 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, Repository } from 'typeorm';
-import { validate as isUUID } from 'uuid';
 
-import { Product, ProductImage } from './entities';
 import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
-import { PaginationDto } from '../common/dtos/pagination.dto';
+import { PaginationDto } from 'src/common/dtos/pagination.dto';
+
+import { validate as isUUID } from 'uuid';
+import { ProductImage, Product } from './entities';
+import { User } from '../auth/entities/user.entity';
 
 @Injectable()
 export class ProductsService {
@@ -28,7 +30,7 @@ export class ProductsService {
     private readonly dataSource: DataSource,
   ) {}
 
-  async create(createProductDto: CreateProductDto) {
+  async create(createProductDto: CreateProductDto, user: User) {
     try {
       const { images = [], ...productDetails } = createProductDto;
 
@@ -37,14 +39,12 @@ export class ProductsService {
         images: images.map((image) =>
           this.productImageRepository.create({ url: image }),
         ),
+        user,
       });
 
       await this.productRepository.save(product);
 
-      return {
-        ...product,
-        images,
-      };
+      return { ...product, images };
     } catch (error) {
       this.handleDBExceptions(error);
     }
@@ -96,7 +96,7 @@ export class ProductsService {
     };
   }
 
-  async update(id: string, updateProductDto: UpdateProductDto) {
+  async update(id: string, updateProductDto: UpdateProductDto, user: User) {
     const { images, ...toUpdate } = updateProductDto;
 
     const product = await this.productRepository.preload({ id, ...toUpdate });
@@ -119,6 +119,8 @@ export class ProductsService {
       }
 
       // await this.productRepository.save( product );
+      product.user = user;
+
       await queryRunner.manager.save(product);
 
       await queryRunner.commitTransaction();
@@ -128,7 +130,6 @@ export class ProductsService {
     } catch (error) {
       await queryRunner.rollbackTransaction();
       await queryRunner.release();
-
       this.handleDBExceptions(error);
     }
   }
@@ -136,16 +137,6 @@ export class ProductsService {
   async remove(id: string) {
     const product = await this.findOne(id);
     await this.productRepository.remove(product);
-  }
-
-  async deleteAllProducts() {
-    const query = this.productRepository.createQueryBuilder('product');
-
-    try {
-      return await query.delete().where({}).execute();
-    } catch (error) {
-      this.handleDBExceptions(error);
-    }
   }
 
   private handleDBExceptions(error: any) {
@@ -156,5 +147,15 @@ export class ProductsService {
     throw new InternalServerErrorException(
       'Unexpected error, check server logs',
     );
+  }
+
+  async deleteAllProducts() {
+    const query = this.productRepository.createQueryBuilder('product');
+
+    try {
+      return await query.delete().where({}).execute();
+    } catch (error) {
+      this.handleDBExceptions(error);
+    }
   }
 }
